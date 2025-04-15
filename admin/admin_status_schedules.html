@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Requests - Admin Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+
+        .appointments-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .appointments-table th, 
+        .appointments-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .appointments-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: orange;
+            font-weight: bold;
+        }
+        
+        .status-confirmed {
+            color: green;
+            font-weight: bold;
+        }
+        
+        .status-declined {
+            color: red;
+            font-weight: bold;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .btn-confirm {
+            background-color: green;
+            color: white;
+        }
+
+        .btn-decline {
+            background-color: red;
+            color: white;
+        }
+        
+        .btn-details {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .no-appointments {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+            background-color: white;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* Appointment detail modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 800px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .modal-close:hover {
+            color: black;
+        }
+        
+        .appointment-details {
+            margin-top: 20px;
+        }
+        
+        .detail-row {
+            display: flex;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            width: 150px;
+        }
+        
+        .detail-value {
+            flex: 1;
+        }
+        
+        .services-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .services-list li {
+            padding: 3px 0;
+        }
+        
+        .applied-coupon {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: inline-block;
+        }
+        
+        .modal-actions {
+            margin-top: 20px;
+            text-align: right;
+        }
+        
+        /* Tabs for filtering appointments */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            margin-right: 5px;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            background-color: #f8f8f8;
+        }
+        
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+            font-weight: bold;
+        }
+        
+        /* Notification badge */
+        .notification-badge {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar_admin.html"></div>
+
+    <div class="content">
+        <h1>Appointment Requests</h1>
+        
+        <div class="tabs">
+            <div class="tab active" data-status="pending">Pending <span class="notification-badge" id="pending-count">0</span></div>
+            <div class="tab" data-status="confirmed">Confirmed</div>
+            <div class="tab" data-status="declined">Declined</div>
+            <div class="tab" data-status="all">All Appointments</div>
+        </div>
+        
+        <table class="appointments-table" id="appointments-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Client</th>
+                    <th>Services</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="appointments-list">
+                <!-- Appointments will be loaded here -->
+            </tbody>
+        </table>
+        
+        <div class="no-appointments" id="no-appointments" style="display:none;">
+            <p>No appointment requests found.</p>
+        </div>
+        
+        <!-- Appointment Details Modal -->
+        <div id="appointment-modal" class="modal">
+            <div class="modal-content">
+                <span class="modal-close">&times;</span>
+                <h2>Appointment Details</h2>
+                
+                <div class="appointment-details" id="appointment-details">
+                    <!-- Details will be loaded here -->
+                </div>
+                
+                <div class="modal-actions" id="modal-actions">
+                    <!-- Action buttons will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch the navbar.html file
+            fetch('navbar_admin.html')
+                .then(response => response.text())
+                .then(data => {
+                    // Insert the navbar HTML
+                    document.getElementById('navbar_admin.html').innerHTML = data;
+                })
+                .catch(error => console.error('Error loading navbar:', error));
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const appointmentsTable = document.getElementById('appointments-table');
+            const appointmentsList = document.getElementById('appointments-list');
+            const noAppointments = document.getElementById('no-appointments');
+            const modal = document.getElementById('appointment-modal');
+            const modalClose = document.querySelector('.modal-close');
+            const appointmentDetails = document.getElementById('appointment-details');
+            const modalActions = document.getElementById('modal-actions');
+            const pendingCountBadge = document.getElementById('pending-count');
+            const tabs = document.querySelectorAll('.tab');
+            
+            // Current filter
+            let currentStatus = 'pending';
+            
+            // Load appointments
+            loadAppointments(currentStatus);
+            
+            // Tab switching
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Get status filter
+                    currentStatus = this.getAttribute('data-status');
+                    
+                    // Load appointments with filter
+                    loadAppointments(currentStatus);
+                });
+            });
+            
+            // Close modal
+            modalClose.addEventListener('click', function() {
+                modal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+            
+            // Event delegation for buttons
+            appointmentsList.addEventListener('click', function(e) {
+                if (e.target.classList.contains('btn-confirm')) {
+                    const appointmentId = e.target.getAttribute('data-id');
+                    updateAppointmentStatus(appointmentId, 'confirmed');
+                }
+                else if (e.target.classList.contains('btn-decline')) {
+                    const appointmentId = e.target.getAttribute('data-id');
+                    updateAppointmentStatus(appointmentId, 'declined');
+                }
+                else if (e.target.classList.contains('btn-details')) {
+                    const appointmentId = e.target.getAttribute('data-id');
+                    showAppointmentDetails(appointmentId);
+                }
+            });
+            
+            // Functions
+            function getAppointments() {
+                return JSON.parse(localStorage.getItem('pendingAppointments')) || [];
+            }
+            
+            function saveAppointments(appointments) {
+                localStorage.setItem('pendingAppointments', JSON.stringify(appointments));
+            }
+            
+            function loadAppointments(statusFilter) {
+                const appointments = getAppointments();
+                
+                // Update pending count badge
+                const pendingCount = appointments.filter(app => app.status === 'pending').length;
+                pendingCountBadge.textContent = pendingCount;
+                
+                // Filter appointments by status
+                const filteredAppointments = statusFilter === 'all' 
+                    ? appointments 
+                    : appointments.filter(app => app.status === statusFilter);
+                
+                // Clear current list
+                appointmentsList.innerHTML = '';
+                
+                if (filteredAppointments.length === 0) {
+                    appointmentsTable.style.display = 'none';
+                    noAppointments.style.display = 'block';
+                } else {
+                    appointmentsTable.style.display = 'table';
+                    noAppointments.style.display = 'none';
+                    
+                    // Sort appointments by date (newest first)
+                    filteredAppointments.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+                    
+                    // Add each appointment to the table
+                    filteredAppointments.forEach(appointment => {
+                        const row = document.createElement('tr');
+                        
+                        // Format date and time
+                        const dateStr = formatDate(appointment.date);
+                        
+                        // Get services list (limited to 2 with "and more" if needed)
+                        let servicesText = '';
+                        if (appointment.services.length <= 2) {
+                            servicesText = appointment.services.map(formatServiceName).join(', ');
+                        } else {
+                            servicesText = `${formatServiceName(appointment.services[0])}, ${formatServiceName(appointment.services[1])} and ${appointment.services.length - 2} more`;
+                        }
+                        
+                        // Status class
+                        const statusClass = `status-${appointment.status}`;
+                        
+                        // Action buttons based on status
+                        let actionButtons = '';
+                        if (appointment.status === 'pending') {
+                            actionButtons = `
+                                <div class="action-buttons">
+                                    <button class="btn btn-confirm" data-id="${appointment.id}">Confirm</button>
+                                    <button class="btn btn-decline" data-id="${appointment.id}">Decline</button>
+                                    <button class="btn btn-details" data-id="${appointment.id}">Details</button>
+                                </div>
+                            `;
+                        } else {
+                            actionButtons = `
+                                <div class="action-buttons">
+                                    <button class="btn btn-details" data-id="${appointment.id}">Details</button>
+                                </div>
+                            `;
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${dateStr} at ${appointment.time}</td>
+                            <td>${appointment.client.name}</td>
+                            <td>${servicesText}</td>
+                            <td class="${statusClass}">${capitalizeFirstLetter(appointment.status)}</td>
+                            <td>${actionButtons}</td>
+                        `;
+                        
+                        appointmentsList.appendChild(row);
+                    });
+                }
+            }
+            
+            function updateAppointmentStatus(appointmentId, newStatus) {
+                const appointments = getAppointments();
+                const index = appointments.findIndex(app => app.id === appointmentId);
+                
+                if (index !== -1) {
+                    appointments[index].status = newStatus;
+                    saveAppointments(appointments);
+                    loadAppointments(currentStatus);
+                    
+                    // Close modal if open
+                    modal.style.display = 'none';
+                }
+            }
+            
+            function showAppointmentDetails(appointmentId) {
+                const appointments = getAppointments();
+                const appointment = appointments.find(app => app.id === appointmentId);
+                
+                if (appointment) {
+                    // Format content for modal
+                    let detailsHtml = `
+                        <div class="detail-row">
+                            <div class="detail-label">Client:</div>
+                            <div class="detail-value">${appointment.client.name}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Contact:</div>
+                            <div class="detail-value">
+                                ${appointment.client.email}<br>
+                                ${appointment.client.phone}
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Appointment:</div>
+                            <div class="detail-value">
+                                ${formatDate(appointment.date)} at ${appointment.time}
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Vehicle VIN:</div>
+                            <div class="detail-value">
+                                ${appointment.vin || 'Not provided'}
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Services:</div>
+                            <div class="detail-value">
+                                <ul class="services-list">
+                                    ${appointment.services.map(service => `<li>${formatServiceName(service)}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add coupon if applied
+                    if (appointment.coupon) {
+                        detailsHtml += `
+                            <div class="detail-row">
+                                <div class="detail-label">Applied Coupon:</div>
+                                <div class="detail-value">
+                                    <div class="applied-coupon">
+                                        ${appointment.coupon.code} - ${appointment.coupon.discount}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add additional info if provided
+                    if (appointment.additionalInfo) {
+                        detailsHtml += `
+                            <div class="detail-row">
+                                <div class="detail-label">Additional Info:</div>
+                                <div class="detail-value">
+                                    ${appointment.additionalInfo}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Set status with color
+                    detailsHtml += `
+                        <div class="detail-row">
+                            <div class="detail-label">Status:</div>
+                            <div class="detail-value">
+                                <span class="status-${appointment.status}">${capitalizeFirstLetter(appointment.status)}</span>
+                            </div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-label">Submitted:</div>
+                            <div class="detail-value">
+                                ${new Date(appointment.submittedAt).toLocaleString()}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Set detail content
+                    appointmentDetails.innerHTML = detailsHtml;
+                    
+                    // Set action buttons based on status
+                    if (appointment.status === 'pending') {
+                        modalActions.innerHTML = `
+                            <button class="btn btn-confirm" data-id="${appointment.id}">Confirm Appointment</button>
+                            <button class="btn btn-decline" data-id="${appointment.id}">Decline Appointment</button>
+                        `;
+                    } else {
+                        modalActions.innerHTML = `
+                            <button class="btn" onclick="document.getElementById('appointment-modal').style.display='none'">Close</button>
+                        `;
+                    }
+                    
+                    // Show modal
+                    modal.style.display = 'block';
+                }
+            }
+            
+            // Helper functions
+            function formatDate(dateStr) {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            }
+            
+            function formatServiceName(serviceSlug) {
+                // Convert slug to readable text
+                const serviceNames = {
+                    'oil-change': 'Oil Change',
+                    'brake-service': 'Brake Service',
+                    'tire-replacement': 'Tire Replacement',
+                    'engine-diagnostics': 'Engine Diagnostics',
+                    'ac-service': 'AC/Heating Service',
+                    'timing-chain': 'Timing Chain Replacement',
+                    'timing-belt': 'Timing Belt Replacement',
+                    'other': 'Other Service'
+                };
+                
+                return serviceNames[serviceSlug] || serviceSlug;
+            }
+            
+            function capitalizeFirstLetter(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+        });
+    </script>
+</body>
+</html>
